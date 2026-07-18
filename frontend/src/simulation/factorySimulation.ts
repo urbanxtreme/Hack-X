@@ -351,52 +351,83 @@ export function useFactorySimulation() {
   }, [])
 
   const runDemoScenario = useCallback((scenario: DemoScenario) => {
-    // Reset first, then schedule scenario events
-    resetFactory()
+    if (scenario === 'normal') {
+      // Clear existing faults, recoveries, anomalies, and incidents, but keep machines intact
+      setState(prev => ({
+        ...prev,
+        activeFaults: [],
+        activeRecoveries: [],
+        anomalies: [],
+        incidents: [],
+        selectedMachineId: null, // Ensure overlay is closed
+        eventLog: [...prev.eventLog, makeEvent('system', `Returning to normal operation`)].slice(-100),
+      }))
+      return
+    }
+
+    // For other scenarios, log the injection but DO NOT clear existing faults (allow stacking)
+    setState(prev => ({
+      ...prev,
+      eventLog: [...prev.eventLog, makeEvent('system', `Loading demo scenario: ${scenario}`)].slice(-100),
+    }))
 
     if (scenario === 'bearing_degradation' || scenario === 'multi_domain_critical') {
-      // After 2s, inject bearing degradation on CNC-04
+      // After 2s, inject bearing degradation on a random compatible machine
       setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          activeFaults: [
-            {
-              id: makeId(),
-              faultType: 'bearing_degradation',
-              machineId: 'CNC-04',
-              startedAt: Date.now(),
-              isActive: true,
-            }
-          ],
-          selectedMachineId: 'CNC-04',
-          eventLog: [...prev.eventLog,
-            makeEvent('system', 'Demo scenario: Bearing Degradation starting on CNC-04', 'CNC-04')
-          ].slice(-100),
-        }))
+        setState(prev => {
+          const compatible = Object.values(prev.machines).filter(m => m.type === 'cnc' || m.type === 'motor')
+          const target = compatible.length > 0 
+            ? compatible[Math.floor(Math.random() * compatible.length)] 
+            : Object.values(prev.machines)[0]
+
+          return {
+            ...prev,
+            activeFaults: [
+              ...prev.activeFaults,
+              {
+                id: makeId(),
+                faultType: 'bearing_degradation',
+                machineId: target.id,
+                startedAt: Date.now(),
+                isActive: true,
+              }
+            ],
+            eventLog: [...prev.eventLog,
+              makeEvent('system', `Demo scenario: Bearing Degradation starting on ${target.id}`, target.id)
+            ].slice(-100),
+          }
+        })
       }, 2000)
     }
 
     if (scenario === 'energy_anomaly') {
       setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          activeFaults: [
-            {
-              id: makeId(),
-              faultType: 'energy_inefficiency',
-              machineId: 'Motor-01',
-              startedAt: Date.now(),
-              isActive: true,
-            }
-          ],
-          selectedMachineId: 'Motor-01',
-          eventLog: [...prev.eventLog,
-            makeEvent('system', 'Demo scenario: Energy Inefficiency starting on Motor-01', 'Motor-01')
-          ].slice(-100),
-        }))
+        setState(prev => {
+          const compatible = Object.values(prev.machines).filter(m => m.type !== 'cnc') // Motor, Pump, Conveyor
+          const target = compatible.length > 0 
+            ? compatible[Math.floor(Math.random() * compatible.length)] 
+            : Object.values(prev.machines)[0]
+
+          return {
+            ...prev,
+            activeFaults: [
+              ...prev.activeFaults,
+              {
+                id: makeId(),
+                faultType: 'energy_inefficiency',
+                machineId: target.id,
+                startedAt: Date.now(),
+                isActive: true,
+              }
+            ],
+            eventLog: [...prev.eventLog,
+              makeEvent('system', `Demo scenario: Energy Inefficiency starting on ${target.id}`, target.id)
+            ].slice(-100),
+          }
+        })
       }, 2000)
     }
-  }, [resetFactory])
+  }, [])
 
   return {
     state,
