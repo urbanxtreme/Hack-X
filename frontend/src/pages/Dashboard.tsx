@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import {
   LayoutDashboard, Activity, Shield, Zap, Wrench,
   Settings, LogOut, Bell, Search, Menu, X, ChevronRight, Cpu,
-  Moon, Sun, Globe, Lock, User, HelpCircle, AlertTriangle, CheckCircle, Clock
+  Moon, Sun, Globe, Lock, User, HelpCircle, AlertTriangle, CheckCircle, Clock, Upload, Image as ImageIcon
 } from 'lucide-react'
 import PageTransition from '../components/PageTransition'
 
@@ -175,15 +175,15 @@ export default function Dashboard() {
           </header>
 
           <div className="dashboard-content-area">
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {/* ===== OVERVIEW ===== */}
               {activeTab === 'overview' && (
                 <motion.div
                   key="overview"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="dashboard-grid"
                 >
                   <div className="dashboard-stats-row">
@@ -307,6 +307,72 @@ export default function Dashboard() {
                       </div>
                     </motion.div>
                   </div>
+
+                  <div className="dashboard-bento">
+                    {/* System Health */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="bento-card"
+                    >
+                      <div className="bento-header">
+                        <h3>System Health</h3>
+                        <button className="bento-more-btn"><ChevronRight size={16} /></button>
+                      </div>
+                      <div className="system-health-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                        {[
+                          { label: 'Network Latency', val: '24ms', perc: 15, color: '#10b981' },
+                          { label: 'Storage Capacity', val: '78%', perc: 78, color: '#f59e0b' },
+                          { label: 'CPU Load (Cluster)', val: '42%', perc: 42, color: '#3b82f6' },
+                        ].map((item, i) => (
+                          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{item.label}</span>
+                              <span style={{ fontWeight: 600 }}>{item.val}</span>
+                            </div>
+                            <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <motion.div 
+                                initial={{ width: 0 }} animate={{ width: `${item.perc}%` }} transition={{ delay: 0.5 + (i * 0.1) }}
+                                style={{ height: '100%', background: item.color, borderRadius: '3px' }} 
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    {/* Recent Activity */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="bento-card bento-wide"
+                    >
+                      <div className="bento-header">
+                        <h3>Recent Activity</h3>
+                      </div>
+                      <div className="activity-feed" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {[
+                          { time: '10:42 AM', user: 'System', action: 'Automated backup completed successfully.', icon: Globe },
+                          { time: '09:15 AM', user: 'Admin User', action: 'Changed threshold limits for CNC-2.', icon: User },
+                          { time: 'Yesterday', user: 'Tech Team', action: 'Resolved maintenance ticket WO-8831.', icon: Wrench },
+                        ].map((act, i) => (
+                          <div key={i} style={{ display: 'flex', gap: '1rem', paddingBottom: '1rem', borderBottom: i !== 2 ? '1px solid var(--border-color)' : 'none' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexShrink: 0 }}>
+                              <act.icon size={16} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>
+                                <span style={{ fontWeight: 600 }}>{act.user}</span> {act.action}
+                              </div>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{act.time}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </div>
                 </motion.div>
               )}
 
@@ -314,10 +380,10 @@ export default function Dashboard() {
               {activeTab === 'machines' && (
                 <motion.div
                   key="machines"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="dashboard-grid"
                 >
                   <div className="bento-header">
@@ -384,10 +450,10 @@ export default function Dashboard() {
               {activeTab === 'energy' && (
                 <motion.div
                   key="energy"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="dashboard-grid"
                 >
                   <div className="dashboard-stats-row">
@@ -507,30 +573,67 @@ export default function Dashboard() {
               {activeTab === 'safety' && (
                 <motion.div
                   key="safety"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="dashboard-grid"
                 >
-                  <div className="bento-header">
-                    <h3>Active Camera Feeds</h3>
-                    <span className="status-badge bg-success-light text-success">CV Monitoring Active</span>
+                  <div className="bento-card bento-wide" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(10px)' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>Computer Vision Safety</h3>
+                      <p className="text-muted" style={{ fontSize: '0.875rem' }}>Real-time monitoring and image analysis for PPE compliance and hazard detection.</p>
+                    </div>
+                    <label className="btn-primary cursor-pointer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Upload size={16} /> Upload Image for Analysis
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          alert(`Image "${e.target.files[0].name}" uploaded for Safety CV Analysis! (Simulation)`)
+                        }
+                      }} />
+                    </label>
                   </div>
-                  <div className="camera-grid">
-                    {[1, 2, 3, 4].map((cam) => (
-                      <div key={cam} className="camera-feed">
-                        <div className="camera-overlay">
-                          <span className="camera-label">Zone {cam} - Assembly</span>
-                          <span className="live-badge">LIVE</span>
+
+                  <div className="bento-card bento-wide">
+                    <div className="bento-header" style={{ marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '0.5rem', color: '#10b981' }}>
+                          <ImageIcon size={20} />
                         </div>
-                        <div className="cv-boxes-mock">
-                          <div className="cv-box safe" style={{ left: '30%', top: '40%' }}>Person</div>
-                          <div className="cv-box safe" style={{ left: '60%', top: '50%' }}>Helmet</div>
-                          {cam === 2 && <div className="cv-box warning" style={{ left: '20%', top: '70%' }}>No Vest</div>}
-                        </div>
+                        <h3>Live Camera Feeds</h3>
                       </div>
-                    ))}
+                      <span className="status-badge bg-success-light text-success" style={{ padding: '0.375rem 0.75rem', borderRadius: '2rem' }}>
+                        <span className="live-dot" style={{ display: 'inline-block', width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', marginRight: '6px' }}></span>
+                        CV Monitoring Active
+                      </span>
+                    </div>
+                    <div className="camera-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                      {[1, 2, 3, 4].map((cam, i) => (
+                        <motion.div 
+                          key={cam} 
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: i * 0.1 }}
+                          className="camera-feed" 
+                          style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid var(--border-color)', position: 'relative', height: '240px', background: '#1e293b', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}
+                        >
+                          <div className="camera-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1rem', background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)', display: 'flex', justifyContent: 'space-between', zIndex: 10 }}>
+                            <span className="camera-label" style={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>Zone {cam} - {['Assembly', 'Packaging', 'Loading Dock', 'Warehouse'][cam-1]}</span>
+                            <span className="live-badge" style={{ background: 'rgba(239,68,68,0.9)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '1px' }}>LIVE</span>
+                          </div>
+                          
+                          {/* Synthetic visual for camera background */}
+                          <div style={{ position: 'absolute', inset: 0, background: `url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop') center/cover`, opacity: 0.5 }}></div>
+
+                          <div className="cv-boxes-mock" style={{ position: 'absolute', inset: 0 }}>
+                            {cam === 1 && <div className="cv-box safe" style={{ position: 'absolute', border: '2px solid #10b981', background: 'rgba(16,185,129,0.2)', padding: '2px 6px', color: 'white', fontSize: '0.75rem', left: '30%', top: '40%', width: '120px', height: '150px' }}>Person (PPE 100%)</div>}
+                            {cam === 1 && <div className="cv-box safe" style={{ position: 'absolute', border: '2px solid #10b981', background: 'rgba(16,185,129,0.2)', padding: '2px 6px', color: 'white', fontSize: '0.75rem', left: '60%', top: '50%', width: '80px', height: '80px' }}>Helmet</div>}
+                            {cam === 2 && <div className="cv-box warning" style={{ position: 'absolute', border: '2px solid #ef4444', background: 'rgba(239,68,68,0.2)', padding: '2px 6px', color: 'white', fontSize: '0.75rem', left: '20%', top: '60%', width: '100px', height: '130px', fontWeight: 'bold' }}>⚠️ Missing Vest</div>}
+                            {cam === 3 && <div className="cv-box safe" style={{ position: 'absolute', border: '2px solid #3b82f6', background: 'rgba(59,130,246,0.2)', padding: '2px 6px', color: 'white', fontSize: '0.75rem', left: '40%', top: '30%', width: '200px', height: '180px' }}>Forklift - Safe Distance</div>}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -539,10 +642,10 @@ export default function Dashboard() {
               {activeTab === 'maintenance' && (
                 <motion.div
                   key="maintenance"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="dashboard-grid"
                 >
                   <div className="dashboard-stats-row" style={{ marginBottom: '1.5rem' }}>
@@ -650,10 +753,10 @@ export default function Dashboard() {
               {activeTab === 'settings' && (
                 <motion.div
                   key="settings"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                 >
                 <div className="settings-page-container">
                   <div className="settings-page-header">
