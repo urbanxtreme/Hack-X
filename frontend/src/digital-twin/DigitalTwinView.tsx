@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import '../digital-twin.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
@@ -22,8 +22,36 @@ import type { FaultType, RecoveryType } from '../simulation/types'
 
 
 
-export default function DigitalTwinView({ view = 'twin' }: { view?: 'twin' | 'logs' }) {
+export default function DigitalTwinView({ view = 'twin', liveIncidents = [] }: { view?: 'twin' | 'logs'; liveIncidents?: any[] }) {
   const [rightPanel, setRightPanel] = useState<'details' | 'incidents'>('details')
+
+  // API recommendations for live twin page
+  const [twinRecommendation, setTwinRecommendation] = useState<any | null>(null)
+  const [loadingTwinRec, setLoadingTwinRec] = useState(false)
+
+  const activeLiveIncident = liveIncidents.find(i => i.priority === 'CRITICAL' || i.priority === 'HIGH' || i.priority === 'WARNING' || i.priority === 'LOW')
+
+  useEffect(() => {
+    if (activeLiveIncident) {
+      const fetchRecommendation = async () => {
+        setLoadingTwinRec(true)
+        try {
+          const res = await fetch(`http://localhost:8000/api/recommendations/${activeLiveIncident.incident_id}`)
+          if (res.ok) {
+            const data = await res.json()
+            setTwinRecommendation(data)
+          }
+        } catch (e) {
+          console.error("Failed to load Gemini recommendation for Twin:", e)
+        } finally {
+          setLoadingTwinRec(false)
+        }
+      }
+      fetchRecommendation()
+    } else {
+      setTwinRecommendation(null)
+    }
+  }, [activeLiveIncident])
 
   const {
     state,
@@ -166,8 +194,58 @@ export default function DigitalTwinView({ view = 'twin' }: { view?: 'twin' | 'lo
             </div>
 
             {/* RIGHT: Resolves Toolbox & Logs */}
-            <div className="dt-right-panel">
-              <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="dt-right-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', overflowY: 'auto' }}>
+              {/* Dynamic Gemini AI Live Root-Cause Analysis Panel */}
+              {activeLiveIncident && (
+                <div className="glass" style={{ padding: '1rem', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '0.75rem', background: 'rgba(6, 182, 212, 0.03)', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <div style={{ background: 'var(--accent-primary)', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Cpu size={12} style={{ color: '#090d16' }} />
+                    </div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Gemini AI Diagnosis</span>
+                  </div>
+
+                  {loadingTwinRec ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0' }}>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                        style={{ border: '2px solid rgba(255,255,255,0.1)', borderTop: '2px solid var(--accent-primary)', borderRadius: '50%', width: '12px', height: '12px' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Querying Gemini 3.5 Flash...</span>
+                    </div>
+                  ) : twinRecommendation ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Incident ID</span>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>{activeLiveIncident.incident_id} ({activeLiveIncident.asset})</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Analysis Summary</span>
+                        <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: '1.4' }}>{twinRecommendation.summary}</p>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Recommended Actions</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.25rem' }}>
+                          {(twinRecommendation.recommended_actions || twinRecommendation.recommendedActions || []).slice(0, 2).map((act: any, idx: number) => (
+                            <div key={idx} style={{ padding: '0.4rem 0.6rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: 'var(--text-main)' }}>{act.action}</span>
+                              <span className="status-badge bg-brand-light text-brand" style={{ fontSize: '0.6rem', padding: '0.05rem 0.25rem' }}>{act.timeline}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', lineHeight: '1.4' }}>
+                        <strong>Technical Context:</strong> {twinRecommendation.operator_explanation || twinRecommendation.operatorExplanation}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No live recommendations found.</span>
+                  )}
+                </div>
+              )}
+
+              <div style={{ flex: 1 }}>
                 <RecoveryControlPanel state={state} />
               </div>
             </div>

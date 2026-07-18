@@ -603,7 +603,7 @@ export default function Dashboard() {
                   transition={{ duration: 0.3 }}
                   style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}
                 >
-                  <DigitalTwinView view={activeTab as 'twin' | 'logs'} />
+                  <DigitalTwinView view={activeTab as 'twin' | 'logs'} liveIncidents={incidents} />
                 </motion.div>
               )}
 
