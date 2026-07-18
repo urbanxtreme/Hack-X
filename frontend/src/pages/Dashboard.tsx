@@ -23,7 +23,23 @@ export default function Dashboard() {
     <PageTransition>
       <div className="dashboard-layout">
         {/* Animated background glow */}
-        <div className="dashboard-bg-glow" />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            opacity: [0.5, 0.8, 0.5]
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="dashboard-bg-glow" 
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.5, 1],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="dashboard-bg-glow" 
+          style={{ top: 'auto', bottom: '-10rem', left: 'auto', right: '-10rem', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.04) 0%, transparent 70%)' }}
+        />
 
         {/* Sidebar */}
         <AnimatePresence mode="wait">
@@ -125,14 +141,22 @@ export default function Dashboard() {
                     ].map((stat, i) => (
                       <motion.div
                         key={stat.label}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="glass stat-card"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 + 0.1, type: "spring", stiffness: 100 }}
+                        className="stat-card"
                       >
                         <h4 className="stat-card-label">{stat.label}</h4>
                         <div className="stat-card-value-row">
-                          <span className="stat-card-value" style={{ color: stat.color }}>{stat.value}</span>
+                          <motion.span 
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.1 + 0.3, type: "spring" }}
+                            className="stat-card-value" 
+                            style={{ color: stat.color }}
+                          >
+                            {stat.value}
+                          </motion.span>
                           <span className="stat-card-trend">{stat.trend}</span>
                         </div>
                       </motion.div>
@@ -142,23 +166,27 @@ export default function Dashboard() {
                   {/* Main Charts Area */}
                   <div className="dashboard-bento">
                     <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      className="glass bento-card bento-wide"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3, type: "spring" }}
+                      className="bento-card bento-wide"
                     >
                       <div className="bento-header">
                         <h3>Production Output (Last 7 Days)</h3>
-                        <button className="text-muted"><ChevronRight size={16} /></button>
+                        <button className="text-muted hover:text-emerald-500 transition-colors"><ChevronRight size={16} /></button>
                       </div>
                       <div className="bento-chart-area">
                         <div className="chart-bars-large">
                           {[40, 55, 48, 65, 75, 70, 85, 80, 95, 90, 85, 92, 88, 78].map((h, i) => (
                             <motion.div
                               key={i}
-                              initial={{ height: 0 }}
-                              animate={{ height: `${h}%` }}
-                              transition={{ delay: 0.5 + i * 0.05, duration: 0.8, type: 'spring' }}
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: `${h}%`, opacity: 1 }}
+                              whileHover={{ scaleY: 1.05 }}
+                              transition={{ 
+                                height: { delay: 0.4 + i * 0.05, duration: 0.8, type: 'spring' },
+                                opacity: { delay: 0.4 + i * 0.05, duration: 0.4 }
+                              }}
                               className="chart-bar-large"
                             />
                           ))}
@@ -167,10 +195,10 @@ export default function Dashboard() {
                     </motion.div>
 
                     <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="glass bento-card"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4, type: "spring" }}
+                      className="bento-card"
                     >
                       <div className="bento-header">
                         <h3>Machine Status</h3>
@@ -182,13 +210,19 @@ export default function Dashboard() {
                           { name: 'Packaging Unit', status: 'Online', perf: 94 },
                           { name: 'CNC Machine 2', status: 'Maintenance', perf: 0 },
                         ].map((m, i) => (
-                          <div key={m.name} className="machine-item">
+                          <motion.div 
+                            key={m.name} 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + (i * 0.1) }}
+                            className="machine-item group"
+                          >
                             <div className="machine-info">
                               <div className={`status-indicator ${m.status.toLowerCase()}`} />
                               <span className="machine-name">{m.name}</span>
                             </div>
                             <span className="machine-perf">{m.perf}%</span>
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
                     </motion.div>

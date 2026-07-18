@@ -44,7 +44,7 @@ export default function CTA() {
           transition={{ delay: 0.3 }}
           className="cta-actions"
         >
-          <Link to="/dashboard" className="btn-primary hero-btn">
+          <Link to="/auth" className="btn-primary hero-btn">
             Login / Sign Up
             <ArrowRight size={16} />
           </Link>

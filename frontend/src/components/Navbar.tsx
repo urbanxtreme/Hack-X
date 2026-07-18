@@ -61,7 +61,7 @@ export default function Navbar() {
             <Link to="/contact" className="nav-link">
               Contact Sales
             </Link>
-            <Link to="/dashboard" className="btn-primary">
+            <Link to="/auth" className="btn-primary">
               Login / Sign Up
               <ArrowRight size={14} />
             </Link>
@@ -98,7 +98,7 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="btn-primary flex-center mt-4">
+              <Link to="/auth" onClick={() => setMobileOpen(false)} className="btn-primary flex-center mt-4">
                 Login / Sign Up
                 <ArrowRight size={16} />
               </Link>

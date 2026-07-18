@@ -220,7 +220,7 @@ export default function Hero() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="hero-actions"
             >
-              <Link to="/dashboard" className="btn-primary hero-btn">
+              <Link to="/auth" className="btn-primary hero-btn">
                 Login / Sign Up
                 <ArrowRight size={16} />
               </Link>

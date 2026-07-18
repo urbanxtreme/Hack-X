@@ -8,14 +8,16 @@ import Home from './pages/Home'
 import Platform from './pages/Platform'
 import Solutions from './pages/Solutions'
 import Dashboard from './pages/Dashboard'
+import Auth from './pages/Auth'
 
 function AppContent() {
   const location = useLocation()
   const isDashboard = location.pathname.startsWith('/dashboard')
+  const isAuth = location.pathname.startsWith('/auth')
   
   return (
     <div className="app-layout">
-      {!isDashboard && <Navbar />}
+      {(!isDashboard && !isAuth) && <Navbar />}
       <main>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
@@ -23,10 +25,11 @@ function AppContent() {
             <Route path="/platform" element={<Platform />} />
             <Route path="/solutions" element={<Solutions />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/auth" element={<Auth />} />
           </Routes>
         </AnimatePresence>
       </main>
-      {!isDashboard && <Footer />}
+      {(!isDashboard && !isAuth) && <Footer />}
     </div>
   )
 }
