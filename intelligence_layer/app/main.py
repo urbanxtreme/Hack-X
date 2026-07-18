@@ -254,6 +254,16 @@ def get_incidents():
     """Returns all generated incidents."""
     return db.incidents
 
+@app.get("/api/incidents/machine/{machine_id}", response_model=List[UnifiedIncident])
+def get_incidents_by_machine(machine_id: str):
+    """
+    Returns all incidents for a specific machine asset ID.
+    Used by the frontend machine modal to show per-machine maintenance history
+    and to pre-filter the Maintenance tab view.
+    """
+    matching = [inc for inc in db.incidents if inc.asset.lower() == machine_id.lower()]
+    return matching
+
 @app.get("/api/recommendations/{incident_id}", response_model=OperatorRecommendation)
 def get_recommendation(incident_id: str):
     """

@@ -27,20 +27,20 @@ function makeEvent(category: FactoryEvent['category'], message: string, machineI
 }
 
 const INITIAL_STATE: SimulationState = {
-  machines: Object.fromEntries(INITIAL_MACHINES.map(m => [m.id, { ...m }])),
-  telemetryHistory: Object.fromEntries(INITIAL_MACHINES.map(m => [m.id, []])),
+  machines: {},           // Empty — populated from user-imported machines
+  telemetryHistory: {},   // Empty — filled when machines are added
   activeFaults: [],
   activeRecoveries: [],
   anomalies: [],
   correlations: [],
   incidents: [],
   recommendations: {},
-  eventLog: [makeEvent('system', 'Factory simulation initialized. All systems nominal.')],
+  eventLog: [makeEvent('system', 'Factory twin ready. Import your machinery from the Machines page to begin.')],
   selectedMachineId: null,
   simulationSpeed: 1,
   isPaused: false,
   backendState: 'demo_mode',
-  factoryIntelligenceScore: 92,
+  factoryIntelligenceScore: 100,
 }
 
 export function useFactorySimulation() {
@@ -312,14 +312,16 @@ export function useFactorySimulation() {
     lastCorrelationAt.current = 0
     setState({
       ...INITIAL_STATE,
-      machines: Object.fromEntries(INITIAL_MACHINES.map(m => [m.id, { ...m }])),
-      telemetryHistory: Object.fromEntries(INITIAL_MACHINES.map(m => [m.id, []])),
-      eventLog: [makeEvent('system', 'Factory reset to baseline. All systems nominal.')],
+      machines: {},
+      telemetryHistory: {},
+      eventLog: [makeEvent('system', 'Factory twin reset. Re-importing company machines...')],
     })
   }, [])
 
-  const addMachine = useCallback((name: string, type: Machine['type'], lineId: string, gridIndex?: number) => {
-    const id = `${type.toUpperCase()}-${Math.floor(Math.random() * 10000)}`
+  const addMachine = useCallback((name: string, type: Machine['type'], lineId: string, gridIndex?: number, explicitId?: string) => {
+    // Use the caller-supplied ID if provided (for syncing company machines with their real IDs)
+    // otherwise generate a random one for drag-drop adds from the twin toolbar
+    const id = explicitId || `${type.toUpperCase()}-${Math.floor(Math.random() * 10000)}`
     
     // Set dynamic baseline for the new machine
     MACHINE_BASELINES[id] = getDefaultBaselineForType(type)
@@ -331,8 +333,8 @@ export function useFactorySimulation() {
       type,
       lineId,
       gridIndex,
-      x: 0, // Not used in grid layout
-      y: 0, // Not used in grid layout
+      x: 0,
+      y: 0,
       status: 'healthy',
       healthScore: 100,
       temperature: baseline.temperature,
@@ -346,7 +348,7 @@ export function useFactorySimulation() {
       ...prev,
       machines: { ...prev.machines, [id]: newMachine },
       telemetryHistory: { ...prev.telemetryHistory, [id]: [] },
-      eventLog: [...prev.eventLog, makeEvent('system', `Machine added: ${name} (${id})`)].slice(-100)
+      eventLog: [...prev.eventLog, makeEvent('system', `Machine synced: ${name} (${id})`)].slice(-100)
     }))
   }, [])
 

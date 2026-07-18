@@ -110,6 +110,20 @@ export default function FactoryGrid({ state, onSelectMachine, onDropFault, onAdd
           gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
           gap: '1.5rem',
         }}>
+          {machines.length === 0 && (
+            <div style={{
+              gridColumn: '1 / -1',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: '3rem 1rem', border: '2px dashed var(--border-color)', borderRadius: '1rem',
+              background: 'rgba(99,102,241,0.03)', marginBottom: '1rem', minHeight: '220px'
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem', opacity: 0.5 }}>🏭</div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}>No Machinery in Twin</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '300px', lineHeight: '1.5' }}>
+                Go to the <strong>Machines</strong> page and import your company equipment using the <strong>+ Add Machinery</strong> button. Your machines will appear here automatically.
+              </div>
+            </div>
+          )}
           {machines.map((machine) => (
             <div key={machine.id} style={{ display: 'flex', flexDirection: 'column' }}>
               <MachineCard
