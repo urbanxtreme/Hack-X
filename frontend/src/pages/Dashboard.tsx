@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   LayoutDashboard, Activity, Shield, Zap, Wrench,
-  Settings, LogOut, Bell, Search, Menu, X, ChevronRight, Cpu, MonitorSpeaker, ScrollText,
+  Settings, LogOut, Bell, Search, Menu, X, ChevronRight, Cpu, MonitorSpeaker, ScrollText, Plus,
   Moon, Sun, Globe, Lock, User, HelpCircle, AlertTriangle, CheckCircle, Clock, Upload, Image as ImageIcon
 } from 'lucide-react'
 import PageTransition from '../components/PageTransition'
@@ -45,6 +45,68 @@ export default function Dashboard() {
   // Maintenance State
   const [createdWorkOrders, setCreatedWorkOrders] = useState<number[]>([])
   const [completedWorkOrders, setCompletedWorkOrders] = useState<string[]>([])
+
+  // Dynamic Machinery Registry (Empty by default for fresh company setup)
+  const [machinesList, setMachinesList] = useState<any[]>([])
+
+  // Add Machinery Form States
+  const [showAddMachineModal, setShowAddMachineModal] = useState(false)
+  const [newMachineId, setNewMachineId] = useState('')
+  const [newMachineName, setNewMachineName] = useState('')
+  const [newMachineUtil, setNewMachineUtil] = useState(90)
+  const [newMachineTemp, setNewMachineTemp] = useState('40°C')
+  const [newMachineVib, setNewMachineVib] = useState('0.4mm/s')
+
+  const handleAddMachine = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMachineId || !newMachineName) return
+
+    // Avoid duplicate IDs
+    if (machinesList.some(m => m.id.toLowerCase() === newMachineId.trim().toLowerCase())) {
+      alert("A machine with this ID already exists.")
+      return
+    }
+
+    const newMachine = {
+      id: newMachineId.trim(),
+      name: newMachineName.trim(),
+      status: 'Online',
+      temp: newMachineTemp.trim(),
+      vib: newMachineVib.trim(),
+      util: Number(newMachineUtil) || 90
+    }
+
+    setMachinesList([...machinesList, newMachine])
+    setNewMachineId('')
+    setNewMachineName('')
+    setNewMachineUtil(90)
+    setNewMachineTemp('40°C')
+    setNewMachineVib('0.4mm/s')
+    setShowAddMachineModal(false)
+  }
+
+  // Dynamic alert classification helper
+  const getIncidentTitle = (inc: any) => {
+    const domains = Array.from(new Set(inc.verified_evidence.map((e: any) => e.domain)))
+    const metrics = Array.from(new Set(inc.verified_evidence.map((e: any) => e.metric)))
+    
+    if (domains.includes('vision')) {
+      return `Safety Restricted Zone Violation`
+    }
+    if (metrics.includes('vibration') && metrics.includes('temperature')) {
+      return `Critical Thermo-Mechanical Friction`
+    }
+    if (metrics.includes('vibration')) {
+      return `High Spindle Vibration Anomaly`
+    }
+    if (metrics.includes('temperature')) {
+      return `Abnormal Drive Core Temperature`
+    }
+    if (metrics.includes('power_kw')) {
+      return `Electrical Overload Power Surge`
+    }
+    return `Operational Asset Fault`
+  }
 
   // API Integration States
   const [anomalies, setAnomalies] = useState<any[]>([])
@@ -144,14 +206,14 @@ export default function Dashboard() {
   }
 
   // Dynamic values based on live telemetry anomalies
-  const activeMachinesCount = 52 - incidents.filter(i => i.priority === 'CRITICAL' || i.priority === 'HIGH').length
+  const activeMachinesCount = machinesList.filter(m => getLiveMachineState(m.id, m).status === 'Online').length
   const safetyIncidentsCount = anomalies.filter(a => a.domain === 'vision').length
   const liveOEE = incidents.some(i => i.priority === 'CRITICAL') ? '76.8%' :
                   incidents.some(i => i.priority === 'HIGH') ? '83.2%' : '87.4%'
   const liveEnergy = anomalies.some(a => a.metric === 'power_kw') ? '1.41 MW' : '1.24 MW'
 
   // Helper to map live telemetry into static machine cards
-  const getLiveMachineState = (mId: string, defaultVals: any) => {
+  function getLiveMachineState(mId: string, defaultVals: any) {
     const targetId = mId === 'M-02' ? 'CNC-04' : mId
     const machineAnoms = anomalies.filter(a => a.machine_id === targetId)
     const activeInc = incidents.find(inc => inc.asset === targetId)
@@ -394,7 +456,7 @@ export default function Dashboard() {
                   <div className="dashboard-stats-row">
                     {[
                       { label: 'Overall Equipment Effectiveness', value: liveOEE, trend: '+1.2%', color: 'var(--accent-primary)' },
-                      { label: 'Active Machines', value: `${activeMachinesCount} / 52`, trend: incidents.some(i => i.priority === 'CRITICAL') ? 'Alert' : 'Optimal', color: '#10b981' },
+                      { label: 'Active Machines', value: `${activeMachinesCount} / ${machinesList.length}`, trend: incidents.some(i => i.priority === 'CRITICAL') ? 'Alert' : 'Optimal', color: '#10b981' },
                       { label: 'Total Energy Usage', value: liveEnergy, trend: anomalies.some(a => a.metric === 'power_kw') ? '+14.5%' : '-4.3%', color: '#f59e0b' },
                       { label: 'Safety Incidents (24h)', value: safetyIncidentsCount.toString(), trend: 'Stable', color: '#10b981' },
                     ].filter(s => matchesSearch(s.label)).map((stat, i) => (
@@ -487,41 +549,46 @@ export default function Dashboard() {
                       <div className="bento-header">
                         <h3>Machine Status</h3>
                       </div>
-                      <div className="machine-list">
-                        {[
-                          { name: 'Milling Station A', status: 'Online', perf: 98 },
-                          { name: 'Assembly Line 3', status: 'Warning', perf: 72 },
-                          { name: 'Packaging Unit', status: 'Online', perf: 94 },
-                          { name: 'CNC Machine 2', status: 'Maintenance', perf: 0 },
-                        ].filter(m => matchesSearch(m.name)).map((m, i) => {
-                          const defaultId = m.name === 'Milling Station A' ? 'M-01' : 
-                                            m.name === 'CNC Machine 2' ? 'M-05' :
-                                            m.name === 'Assembly Line 3' ? 'M-03' : 'M-04';
-                          const live = getLiveMachineState(defaultId, { status: m.status, util: m.perf });
-                          return (
-                            <motion.div
-                              key={m.name}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.5 + i * 0.1 }}
-                              className="machine-item"
-                              onClick={() => setSelectedMachine({ 
-                                id: defaultId, 
-                                name: m.name, 
-                                status: live.status,
-                                temp: live.temp || (m.name === 'Assembly Line 3' ? '58°C' : '42°C'), 
-                                vib: live.vib || (m.name === 'Assembly Line 3' ? '1.2mm/s' : '0.4mm/s'), 
-                                util: live.util 
-                              })}
+                      <div className="machine-list" style={{ width: '100%' }}>
+                        {machinesList.length === 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2.5rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '0.75rem', width: '100%' }}>
+                            <p className="text-muted" style={{ fontSize: '0.85rem', margin: 0, textAlign: 'center' }}>No machinery imported yet.</p>
+                            <button 
+                              onClick={() => setActiveTab('machines')}
+                              className="btn-small btn-primary" 
+                              style={{ marginTop: '0.75rem', cursor: 'pointer' }}
                             >
-                              <div className="machine-info">
-                                <div className={`status-indicator ${live.status.toLowerCase()}`} />
-                                <span className="machine-name">{m.name}</span>
-                              </div>
-                              <span className="machine-perf">{live.util}%</span>
-                            </motion.div>
-                          )
-                        })}
+                              Go to Machines Page
+                            </button>
+                          </div>
+                        ) : (
+                          machinesList.slice(0, 4).filter(m => matchesSearch(m.name)).map((m, i) => {
+                            const live = getLiveMachineState(m.id, { status: m.status, util: m.util });
+                            return (
+                              <motion.div
+                                key={m.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.5 + i * 0.1 }}
+                                className="machine-item"
+                                onClick={() => setSelectedMachine({ 
+                                  id: m.id, 
+                                  name: m.name, 
+                                  status: live.status,
+                                  temp: live.temp || m.temp, 
+                                  vib: live.vib || m.vib, 
+                                  util: live.util 
+                                })}
+                              >
+                                <div className="machine-info">
+                                  <div className={`status-indicator ${live.status.toLowerCase()}`} />
+                                  <span className="machine-name">{m.name}</span>
+                                </div>
+                                <span className="machine-perf">{live.util}%</span>
+                              </motion.div>
+                            )
+                          })
+                        )}
                       </div>
                     </motion.div>
                   </div>
@@ -619,67 +686,88 @@ export default function Dashboard() {
                   transition={{ duration: 0.15 }}
                   className="dashboard-grid"
                 >
-                  <div className="bento-header">
-                    <h3>Fleet Overview</h3>
-                    <div className="status-badges-row">
-                      <span className="status-badge bg-success-light text-success">{activeMachinesCount} Online</span>
-                      <span className="status-badge bg-warning-light text-warning">
-                        {52 - activeMachinesCount} Warning
-                      </span>
+                  <div className="bento-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3>Fleet Overview</h3>
+                      <div className="status-badges-row" style={{ marginTop: '0.25rem' }}>
+                        <span className="status-badge bg-success-light text-success">{activeMachinesCount} Online</span>
+                        <span className="status-badge bg-warning-light text-warning">
+                          {machinesList.length - activeMachinesCount} Warning
+                        </span>
+                      </div>
                     </div>
+                    <button 
+                      onClick={() => setShowAddMachineModal(true)}
+                      className="btn-primary"
+                      style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                    >
+                      <Plus size={16} />
+                      <span>Add Machinery</span>
+                    </button>
                   </div>
-                  <div className="machines-grid">
-                    {[
-                      { id: 'M-01', name: 'Milling Station A', status: 'Online', temp: '42°C', vib: '0.4mm/s', util: 98 },
-                      { id: 'M-02', name: 'CNC Machine 1', status: 'Online', temp: '45°C', vib: '0.6mm/s', util: 92 },
-                      { id: 'M-03', name: 'Assembly Line 3', status: 'Warning', temp: '58°C', vib: '1.2mm/s', util: 72 },
-                      { id: 'M-04', name: 'Packaging Unit', status: 'Online', temp: '38°C', vib: '0.2mm/s', util: 94 },
-                      { id: 'M-05', name: 'CNC Machine 2', status: 'Maintenance', temp: '---', vib: '---', util: 0 },
-                      { id: 'M-06', name: 'Painting Robot C', status: 'Online', temp: '40°C', vib: '0.3mm/s', util: 88 },
-                    ].filter(m => matchesSearch(m.name + ' ' + m.id)).map((m, i) => {
-                      const live = getLiveMachineState(m.id, m);
-                      return (
-                        <motion.div
-                          key={m.id}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: i * 0.05 }}
-                          className="machine-detail-card cursor-pointer"
-                          onClick={() => setSelectedMachine({ ...m, ...live })}
-                        >
-                          <div className="machine-card-header">
-                            <div>
-                              <span className="machine-id">{m.id}</span>
-                              <h4>{m.name}</h4>
+                  {machinesList.length === 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '5rem 1rem', border: '2px dashed var(--border-color)', borderRadius: '1rem', background: 'var(--bg-secondary)', gridColumn: 'span 3', minHeight: '350px', width: '100%' }}>
+                      <Activity size={32} style={{ color: 'var(--accent-primary)', opacity: 0.6, marginBottom: '1rem' }} />
+                      <h4 style={{ margin: '0 0 0.5rem 0' }}>Your Factory Fleet is Empty</h4>
+                      <p className="text-muted" style={{ fontSize: '0.875rem', margin: '0 0 1.5rem 0', textAlign: 'center', maxWidth: '360px', lineHeight: '1.4' }}>
+                        Import your company-specific factory machinery using the button above to start monitoring live telemetry anomalies.
+                      </p>
+                      <button 
+                        onClick={() => setShowAddMachineModal(true)}
+                        className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                      >
+                        <Plus size={16} />
+                        <span>Import First Machine</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="machines-grid">
+                      {machinesList.filter(m => matchesSearch(m.name + ' ' + m.id)).map((m, i) => {
+                        const live = getLiveMachineState(m.id, m);
+                        return (
+                          <motion.div
+                            key={m.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="machine-detail-card cursor-pointer"
+                            onClick={() => setSelectedMachine({ ...m, ...live })}
+                          >
+                            <div className="machine-card-header">
+                              <div>
+                                <span className="machine-id">{m.id}</span>
+                                <h4>{m.name}</h4>
+                              </div>
+                              <div className={`status-indicator ${live.status.toLowerCase()}`} />
                             </div>
-                            <div className={`status-indicator ${live.status.toLowerCase()}`} />
-                          </div>
-                          <div className="machine-metrics-row">
-                            <div className="metric-col">
-                              <span className="metric-label">Temp</span>
-                              <span className={`metric-val ${live.status === 'Warning' ? 'text-warning' : ''}`}>{live.temp}</span>
+                            <div className="machine-metrics-row">
+                              <div className="metric-col">
+                                <span className="metric-label">Temp</span>
+                                <span className={`metric-val ${live.status === 'Warning' ? 'text-warning' : ''}`}>{live.temp}</span>
+                              </div>
+                              <div className="metric-col">
+                                <span className="metric-label">Vibration</span>
+                                <span className={`metric-val ${live.status === 'Warning' ? 'text-warning' : ''}`}>{live.vib}</span>
+                              </div>
+                              <div className="metric-col">
+                                <span className="metric-label">Utilization</span>
+                                <span className="metric-val">{live.util}%</span>
+                              </div>
                             </div>
-                            <div className="metric-col">
-                              <span className="metric-label">Vibration</span>
-                              <span className={`metric-val ${live.status === 'Warning' ? 'text-warning' : ''}`}>{live.vib}</span>
+                            <div className="util-bar-bg">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${live.util}%` }}
+                                transition={{ delay: i * 0.05 + 0.2, duration: 0.6 }}
+                                className={`util-bar-fill ${live.status.toLowerCase()}`}
+                              />
                             </div>
-                            <div className="metric-col">
-                              <span className="metric-label">Utilization</span>
-                              <span className="metric-val">{live.util}%</span>
-                            </div>
-                          </div>
-                          <div className="util-bar-bg">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${live.util}%` }}
-                              transition={{ delay: i * 0.05 + 0.2, duration: 0.6 }}
-                              className={`util-bar-fill ${live.status.toLowerCase()}`}
-                            />
-                          </div>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -952,8 +1040,13 @@ export default function Dashboard() {
                                     <span className="status-badge danger" style={{ fontSize: '0.7rem', padding: '0.1rem 0.35rem' }}>{inc.priority}</span>
                                     <span className="alert-time">{inc.start_time}</span>
                                   </div>
-                                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>{inc.asset} Incident ({inc.incident_id})</h4>
-                                  <p className="text-muted" style={{ fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>{inc.detection_summary}</p>
+                                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>{getIncidentTitle(inc)}</h4>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.15rem' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--accent-primary)' }}>{inc.asset}</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>•</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {inc.incident_id}</span>
+                                  </div>
+                                  <p className="text-muted" style={{ fontSize: '0.85rem', margin: '0.35rem 0 0 0', lineHeight: '1.4' }}>{inc.detection_summary}</p>
                                 </div>
                                 <button
                                   className="btn-small btn-primary"
@@ -1280,6 +1373,96 @@ export default function Dashboard() {
                     <div className="text-center text-danger py-4">Failed to load root cause analysis.</div>
                   )}
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Add Machinery Modal */}
+        <AnimatePresence>
+          {showAddMachineModal && (
+            <div className="modal-backdrop" onClick={() => setShowAddMachineModal(false)} style={{ zIndex: 1100 }}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="machine-modal glass"
+                style={{ maxWidth: '480px', width: '100%', padding: '2rem' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-header">
+                  <div>
+                    <h3>Import Company Machinery</h3>
+                    <span className="text-muted text-small">Configure local asset parameter mappings</span>
+                  </div>
+                  <button className="modal-close-btn" onClick={() => setShowAddMachineModal(false)}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleAddMachine} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Machine ID (Immutable / Match telemetry)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. CNC-04, PRESS-02"
+                      value={newMachineId}
+                      onChange={(e) => setNewMachineId(e.target.value)}
+                      style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-main)', outline: 'none' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Machine Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Spindle Milling Unit B"
+                      value={newMachineName}
+                      onChange={(e) => setNewMachineName(e.target.value)}
+                      style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-main)', outline: 'none' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Initial Temp</label>
+                      <input
+                        type="text"
+                        value={newMachineTemp}
+                        onChange={(e) => setNewMachineTemp(e.target.value)}
+                        style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-main)', outline: 'none' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Initial Vibration</label>
+                      <input
+                        type="text"
+                        value={newMachineVib}
+                        onChange={(e) => setNewMachineVib(e.target.value)}
+                        style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-main)', outline: 'none' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Initial Utilization (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={newMachineUtil}
+                      onChange={(e) => setNewMachineUtil(Number(e.target.value))}
+                      style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-main)', outline: 'none' }}
+                    />
+                  </div>
+
+                  <div className="modal-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button type="submit" className="btn-primary w-full" style={{ cursor: 'pointer' }}>Import Machinery</button>
+                    <button type="button" className="btn-secondary w-full" onClick={() => setShowAddMachineModal(false)} style={{ cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                </form>
               </motion.div>
             </div>
           )}
