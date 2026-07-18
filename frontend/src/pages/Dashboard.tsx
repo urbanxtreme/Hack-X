@@ -1047,15 +1047,44 @@ export default function Dashboard() {
                 >
                   <div className="dashboard-stats-row" style={{ marginBottom: '1.5rem' }}>
                     {[
-                      { label: 'Active Alerts', value: '3', trend: 'Needs Action', color: '#ef4444' },
-                      { label: 'Open Work Orders', value: '12', trend: '4 Overdue', color: '#f59e0b' },
-                      { label: 'Technicians on Shift', value: '8 / 10', trend: 'Optimal', color: '#10b981' },
+                      {
+                        label: 'Active Alerts',
+                        value: incidents.length.toString(),
+                        trend: incidents.some(i => i.priority === 'CRITICAL') ? 'Critical — Act Now' : incidents.length > 0 ? 'Needs Review' : 'All Clear',
+                        color: incidents.length > 0 ? '#ef4444' : '#10b981'
+                      },
+                      {
+                        label: 'Open Work Orders',
+                        // Count machine-driven WOs not yet completed
+                        value: (() => {
+                          const woIds: string[] = []
+                          machinesList.forEach(m => {
+                            const mAnoms = anomalies.filter(a => a.machine_id === m.id)
+                            const mInc = incidents.find(i => i.asset === m.id)
+                            if (mInc) woIds.push(`WO-INC-${m.id}`)
+                            if (mAnoms.some(a => a.metric === 'temperature')) woIds.push(`WO-COOL-${m.id}`)
+                            if (mAnoms.some(a => a.metric === 'vibration')) woIds.push(`WO-BEAR-${m.id}`)
+                            const util = parseFloat(String(m.util)) || 90
+                            if (util > 85) woIds.push(`WO-LUBE-${m.id}`)
+                          })
+                          const open = woIds.filter(id => !completedWorkOrders.includes(id))
+                          return open.length.toString()
+                        })(),
+                        trend: completedWorkOrders.length > 0 ? `${completedWorkOrders.length} Completed` : 'Pending',
+                        color: '#f59e0b'
+                      },
+                      {
+                        label: 'Machines Monitored',
+                        value: `${machinesList.length}`,
+                        trend: machinesList.length > 0 ? `${anomalies.length} Anomalies` : 'Import machines to begin',
+                        color: '#10b981'
+                      },
                     ].map((stat, i) => (
                       <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="stat-card">
                         <h4 className="stat-card-label">{stat.label}</h4>
                         <div className="stat-card-value-row">
                           <span className="stat-card-value" style={{ color: stat.color }}>{stat.value}</span>
-                          <span className={`stat-card-trend ${stat.trend.includes('Overdue') || stat.trend.includes('Needs') ? 'text-warning' : ''}`}>{stat.trend}</span>
+                          <span className={`stat-card-trend ${stat.trend.includes('Critical') || stat.trend.includes('Needs') ? 'text-warning' : ''}`}>{stat.trend}</span>
                         </div>
                       </motion.div>
                     ))}
@@ -1145,30 +1174,114 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="work-orders-list" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {[
-                          { id: 'WO-8832', desc: 'Quarterly lubrication of Conveyor Belt A', due: 'Tomorrow', type: 'preventive' },
-                          { id: 'WO-8833', desc: 'Replace HEPA filters in Cleanroom 2', due: 'In 3 Days', type: 'routine' },
-                          { id: 'WO-8834', desc: 'Calibrate robotic arm sensors (Line 4)', due: 'Next Week', type: 'calibration' },
-                        ].filter(w => matchesSearch(w.desc + ' ' + w.id)).map((wo) => {
-                          const isCompleted = completedWorkOrders.includes(wo.id)
-                          return (
-                            <div key={wo.id} className={`wo-card ${isCompleted ? 'wo-completed' : ''}`}>
-                              <div className="wo-details">
-                                <div className="wo-id-badge">{wo.id}</div>
-                                <div className="wo-desc" style={{ textDecoration: isCompleted ? 'line-through' : 'none' }}>{wo.desc}</div>
-                                <span className="wo-due text-muted text-small flex items-center gap-1">
-                                  <Clock size={12} /> Due {wo.due}
-                                </span>
+                        {(() => {
+                          // Build dynamic work orders from imported machine data + live anomalies/incidents
+                          const dynamicWOs: { id: string; desc: string; due: string; type: string; urgency: 'urgent' | 'preventive' | 'routine' }[] = []
+
+                          machinesList.forEach(m => {
+                            const mAnoms = anomalies.filter(a => a.machine_id === m.id)
+                            const mInc = incidents.find(i => i.asset === m.id)
+                            const util = parseFloat(String(m.util)) || 90
+
+                            // 1. URGENT: machine has an active incident from AI detection
+                            if (mInc) {
+                              dynamicWOs.push({
+                                id: `WO-INC-${m.id}`,
+                                desc: `⚡ AI-Detected Fault Response — ${m.name} (${getIncidentTitle(mInc)})`,
+                                due: 'Immediate',
+                                type: 'corrective',
+                                urgency: 'urgent'
+                              })
+                            }
+
+                            // 2. HIGH TEMP anomaly → cooling / thermal inspection
+                            const tempAnom = mAnoms.find(a => a.metric === 'temperature')
+                            if (tempAnom) {
+                              dynamicWOs.push({
+                                id: `WO-COOL-${m.id}`,
+                                desc: `Thermal Inspection & Cooling Service — ${m.name} (${tempAnom.current_value?.toFixed(1) ?? '?'}°C detected)`,
+                                due: 'Today',
+                                type: 'corrective',
+                                urgency: 'urgent'
+                              })
+                            }
+
+                            // 3. HIGH VIBRATION anomaly → bearing check
+                            const vibAnom = mAnoms.find(a => a.metric === 'vibration')
+                            if (vibAnom) {
+                              dynamicWOs.push({
+                                id: `WO-BEAR-${m.id}`,
+                                desc: `Bearing & Spindle Inspection — ${m.name} (${vibAnom.current_value?.toFixed(2) ?? '?'} mm/s)`,
+                                due: 'Tomorrow',
+                                type: 'preventive',
+                                urgency: 'preventive'
+                              })
+                            }
+
+                            // 4. HIGH UTILIZATION → scheduled lubrication
+                            if (util > 85 && !mInc) {
+                              dynamicWOs.push({
+                                id: `WO-LUBE-${m.id}`,
+                                desc: `Preventive Lubrication & Wear Check — ${m.name} (${util}% utilization)`,
+                                due: 'In 3 Days',
+                                type: 'preventive',
+                                urgency: 'preventive'
+                              })
+                            }
+
+                            // 5. POWER anomaly → electrical inspection
+                            const powerAnom = mAnoms.find(a => a.metric === 'power_kw')
+                            if (powerAnom) {
+                              dynamicWOs.push({
+                                id: `WO-ELEC-${m.id}`,
+                                desc: `Electrical Load Audit — ${m.name} (${powerAnom.current_value?.toFixed(1) ?? '?'} kW draw)`,
+                                due: 'Next Week',
+                                type: 'routine',
+                                urgency: 'routine'
+                              })
+                            }
+                          })
+
+                          if (dynamicWOs.length === 0) {
+                            return (
+                              <div className="text-muted text-center py-8" style={{ padding: '2rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                {machinesList.length === 0
+                                  ? 'Import machines on the Machines page to generate maintenance work orders.'
+                                  : 'All machines healthy — no work orders required at this time.'
+                                }
                               </div>
-                              <button
-                                className={`wo-action-btn ${isCompleted ? 'completed' : ''}`}
-                                onClick={() => isCompleted ? setCompletedWorkOrders(completedWorkOrders.filter(id => id !== wo.id)) : setCompletedWorkOrders([...completedWorkOrders, wo.id])}
-                              >
-                                <CheckCircle size={20} />
-                              </button>
-                            </div>
-                          )
-                        })}
+                            )
+                          }
+
+                          const urgencyColor = (u: string) => u === 'urgent' ? '#ef4444' : u === 'preventive' ? '#f59e0b' : '#3b82f6'
+
+                          return dynamicWOs
+                            .filter(w => matchesSearch(w.desc + ' ' + w.id))
+                            .map((wo) => {
+                              const isCompleted = completedWorkOrders.includes(wo.id)
+                              return (
+                                <div key={wo.id} className={`wo-card ${isCompleted ? 'wo-completed' : ''}`} style={{ borderLeft: `3px solid ${isCompleted ? '#10b981' : urgencyColor(wo.urgency)}` }}>
+                                  <div className="wo-details">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                                      <div className="wo-id-badge" style={{ background: isCompleted ? 'rgba(16,185,129,0.1)' : `rgba(${wo.urgency === 'urgent' ? '239,68,68' : wo.urgency === 'preventive' ? '245,158,11' : '59,130,246'},0.1)`, color: urgencyColor(wo.urgency) }}>{wo.id}</div>
+                                      <span style={{ fontSize: '0.7rem', fontWeight: 600, color: urgencyColor(wo.urgency), textTransform: 'uppercase', letterSpacing: '0.04em' }}>{wo.urgency}</span>
+                                    </div>
+                                    <div className="wo-desc" style={{ textDecoration: isCompleted ? 'line-through' : 'none' }}>{wo.desc}</div>
+                                    <span className="wo-due text-muted text-small flex items-center gap-1">
+                                      <Clock size={12} /> Due {wo.due}
+                                    </span>
+                                  </div>
+                                  <button
+                                    className={`wo-action-btn ${isCompleted ? 'completed' : ''}`}
+                                    title={isCompleted ? 'Mark as open' : 'Mark as done'}
+                                    onClick={() => isCompleted ? setCompletedWorkOrders(completedWorkOrders.filter(id => id !== wo.id)) : setCompletedWorkOrders([...completedWorkOrders, wo.id])}
+                                  >
+                                    <CheckCircle size={20} />
+                                  </button>
+                                </div>
+                              )
+                            })
+                        })()}
                       </div>
                     </div>
                   </div>

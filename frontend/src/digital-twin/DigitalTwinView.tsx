@@ -62,7 +62,6 @@ export default function DigitalTwinView({ view = 'twin', liveIncidents = [], com
     }
   }, [activeLiveIncident])
 
-  const localSim = useFactorySimulation()
   const {
     state,
     injectFault,
