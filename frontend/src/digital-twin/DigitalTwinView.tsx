@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import '../digital-twin.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
@@ -22,15 +22,16 @@ import type { FaultType, RecoveryType } from '../simulation/types'
 
 
 
-export default function DigitalTwinView({ 
-  view = 'twin', 
-  liveIncidents = [],
-  sharedState
-}: { 
-  view?: 'twin' | 'logs'; 
-  liveIncidents?: any[];
-  sharedState?: any;
-}) {
+import { MACHINE_BASELINES, getDefaultBaselineForType } from '../simulation/factoryData'
+
+interface DigitalTwinViewProps {
+  view?: 'twin' | 'logs'
+  liveIncidents?: any[]
+  companyMachines?: any[]   // imported machines from Dashboard machinesList
+  liveAnomalies?: any[]     // live backend anomalies to overlay on the twin
+}
+
+export default function DigitalTwinView({ view = 'twin', liveIncidents = [], companyMachines = [], liveAnomalies = [] }: DigitalTwinViewProps) {
   const [rightPanel, setRightPanel] = useState<'details' | 'incidents'>('details')
 
   // API recommendations for live twin page
@@ -72,7 +73,71 @@ export default function DigitalTwinView({
     resetFactory,
     runDemoScenario,
     addMachine,
-  } = sharedState || localSim
+  } = useFactorySimulation()
+
+  // ── Sync company-imported machines into the live factory simulation ──────────
+  const syncedMachineIds = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!companyMachines || companyMachines.length === 0) return
+
+    // After a factory reset, state.machines becomes empty — clear our tracking so we re-add them
+    if (Object.keys(state.machines).length === 0) {
+      syncedMachineIds.current.clear()
+    }
+
+    companyMachines.forEach((cm) => {
+      const id: string = cm.id
+      if (syncedMachineIds.current.has(id)) return
+      if (state.machines[id]) {
+        syncedMachineIds.current.add(id)
+        return
+      }
+
+      // Determine machine type from name heuristic (fallback: cnc)
+      const nameLower = (cm.name || '').toLowerCase()
+      const type: 'cnc' | 'motor' | 'pump' | 'conveyor' =
+        nameLower.includes('pump') ? 'pump'
+        : nameLower.includes('motor') ? 'motor'
+        : nameLower.includes('conveyor') ? 'conveyor'
+        : 'cnc'
+
+      // Register a telemetry baseline so the simulation tick can generate readings
+      if (!MACHINE_BASELINES[id]) {
+        MACHINE_BASELINES[id] = getDefaultBaselineForType(type)
+      }
+
+      addMachine(cm.name || id, type, 'LINE-A', undefined, id)
+      syncedMachineIds.current.add(id)
+    })
+  }, [companyMachines, state.machines, addMachine])
+
+  // ── Apply live backend anomalies as fault injections in the twin ────────────
+  const appliedAnomalyIds = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!liveAnomalies || liveAnomalies.length === 0) return
+
+    liveAnomalies.forEach((anomaly) => {
+      const anomalyId: string = anomaly.anomaly_id
+      if (appliedAnomalyIds.current.has(anomalyId)) return
+
+      const machineId: string = anomaly.machine_id
+      // Only inject if the machine is present in the twin canvas
+      if (!state.machines[machineId]) return
+
+      appliedAnomalyIds.current.add(anomalyId)
+
+      // Map backend telemetry metric → simulation fault type
+      let faultType: FaultType
+      if (anomaly.metric === 'temperature') faultType = 'cooling_failure'
+      else if (anomaly.metric === 'vibration') faultType = 'bearing_degradation'
+      else if (anomaly.metric === 'power_kw') faultType = 'energy_inefficiency'
+      else faultType = 'motor_overload'
+
+      injectFault(faultType, machineId)
+    })
+  }, [liveAnomalies, state.machines, injectFault])
 
   const handleDropFault = (faultType: FaultType, machineId: string) => {
     injectFault(faultType, machineId)

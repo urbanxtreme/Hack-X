@@ -46,33 +46,10 @@ export default function Dashboard() {
   // Maintenance State
   const [createdWorkOrders, setCreatedWorkOrders] = useState<number[]>([])
   const [completedWorkOrders, setCompletedWorkOrders] = useState<string[]>([])
-
-  // Factory Twin Simulation State
-  const sim = useFactorySimulation()
-  const [hasOpenedTwin, setHasOpenedTwin] = useState(false)
-  const [energyHistory, setEnergyHistory] = useState<number[]>([54.0, 56.5, 58.0, 55.2, 57.4, 57.4])
-
-  useEffect(() => {
-    if (activeTab === 'twin') {
-      setHasOpenedTwin(true)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (!hasOpenedTwin) return
-
-    // Calculate total power in kW from simulation
-    const totalPowerKw = Object.values(sim.state.machines).reduce((sum, m) => sum + m.powerKw, 0)
-
-    setEnergyHistory(prev => {
-      // Append to the list, keeping the last 6 items
-      const next = [...prev, totalPowerKw]
-      if (next.length > 6) {
-        next.shift()
-      }
-      return next
-    })
-  }, [sim.state.machines, hasOpenedTwin])
+  // Filter Maintenance tab by a specific machine when navigating from machine modal
+  const [maintenanceMachineFilter, setMaintenanceMachineFilter] = useState<string | null>(null)
+  // Live incident count for selected machine (fetched from backend)
+  const [machineIncidentCount, setMachineIncidentCount] = useState<number>(0)
 
   // Dynamic Machinery Registry (Empty by default for fresh company setup)
   const [machinesList, setMachinesList] = useState<any[]>([])
@@ -135,6 +112,18 @@ export default function Dashboard() {
     }
     return `Operational Asset Fault`
   }
+
+  // Fetch live incident count for a machine whenever the modal opens
+  useEffect(() => {
+    if (!selectedMachine) {
+      setMachineIncidentCount(0)
+      return
+    }
+    fetch(`http://localhost:8000/api/incidents/machine/${selectedMachine.id}`)
+      .then(res => res.ok ? res.json() : [])
+      .then((data: any[]) => setMachineIncidentCount(data.length))
+      .catch(() => setMachineIncidentCount(0))
+  }, [selectedMachine])
 
   // API Integration States
   const [anomalies, setAnomalies] = useState<any[]>([])
@@ -700,7 +689,7 @@ export default function Dashboard() {
                   transition={{ duration: 0.3 }}
                   style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}
                 >
-                  <DigitalTwinView view={activeTab as 'twin' | 'logs'} liveIncidents={incidents} sharedState={sim} />
+                  <DigitalTwinView view={activeTab as 'twin' | 'logs'} liveIncidents={incidents} companyMachines={machinesList} liveAnomalies={anomalies} />
                 </motion.div>
               )}
 
@@ -1049,11 +1038,26 @@ export default function Dashboard() {
                     {/* Predictive Alerts */}
                     <div className="bento-card flex flex-col">
                       <div className="bento-header" style={{ paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div style={{ padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '0.5rem', color: '#ef4444' }}>
-                            <AlertTriangle size={20} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '0.5rem', color: '#ef4444' }}>
+                              <AlertTriangle size={20} />
+                            </div>
+                            <h3 style={{ margin: 0 }}>Predictive Alerts</h3>
                           </div>
-                          <h3>Predictive Alerts</h3>
+                          {/* Machine filter chip */}
+                          {maintenanceMachineFilter && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.65rem', borderRadius: '2rem', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)', fontSize: '0.78rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                              <span>Filtered: {maintenanceMachineFilter}</span>
+                              <button
+                                onClick={() => setMaintenanceMachineFilter(null)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', padding: 0, marginLeft: '0.1rem' }}
+                                title="Clear filter"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="alerts-feed" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1062,7 +1066,9 @@ export default function Dashboard() {
                             No active predictive alerts. Run a scenario from the sidebar simulator to test anomaly detection!
                           </div>
                         ) : (
-                          incidents.filter(inc => matchesSearch(inc.detection_summary + ' ' + inc.asset)).map((inc, i) => {
+                          incidents
+                            .filter(inc => !maintenanceMachineFilter || inc.asset.toLowerCase() === maintenanceMachineFilter.toLowerCase())
+                            .filter(inc => matchesSearch(inc.detection_summary + ' ' + inc.asset)).map((inc, i) => {
                             const isCritical = inc.priority === 'CRITICAL' || inc.priority === 'HIGH'
                             return (
                               <motion.div
@@ -1304,8 +1310,29 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Live Incident Count from backend */}
+                  {machineIncidentCount > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.9rem', borderRadius: '0.5rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginBottom: '0.25rem' }}>
+                      <AlertTriangle size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.82rem', color: '#ef4444', fontWeight: 600 }}>
+                        {machineIncidentCount} active incident{machineIncidentCount !== 1 ? 's' : ''} recorded for this machine
+                      </span>
+                    </div>
+                  )}
+
                   <div className="modal-actions">
-                    <button className="btn-primary w-full">View Maintenance Logs</button>
+                    <button
+                      className="btn-primary w-full"
+                      onClick={() => {
+                        setMaintenanceMachineFilter(selectedMachine.id)
+                        setActiveTab('maintenance')
+                        setSelectedMachine(null)
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                    >
+                      <ScrollText size={15} />
+                      <span>View Maintenance Logs</span>
+                    </button>
                     {selectedMachine.status === 'Warning' && (
                       <button className="btn-secondary w-full text-danger border-danger">Halt Machine</button>
                     )}
