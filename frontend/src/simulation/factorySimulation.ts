@@ -4,7 +4,7 @@ import type {
   Anomaly, Incident, FactoryEvent, SimulationSpeed,
   FaultType, RecoveryType, TelemetrySample, DemoScenario
 } from './types'
-import { INITIAL_MACHINES, MACHINE_BASELINES, getDefaultBaselineForType } from './factoryData'
+import { INITIAL_MACHINES, MACHINE_BASELINES, MACHINE_MAP, getDefaultBaselineForType } from './factoryData'
 import {
   generateBaseline, applyFaultModifiers, applyRecoveryModifier,
   computeMachineHealth, trimHistory
@@ -27,15 +27,15 @@ function makeEvent(category: FactoryEvent['category'], message: string, machineI
 }
 
 const INITIAL_STATE: SimulationState = {
-  machines: {},           // Empty — populated from user-imported machines
-  telemetryHistory: {},   // Empty — filled when machines are added
+  machines: { ...MACHINE_MAP },  // Pre-seeded so telemetry starts ticking immediately
+  telemetryHistory: Object.fromEntries(Object.keys(MACHINE_MAP).map(id => [id, []])),
   activeFaults: [],
   activeRecoveries: [],
   anomalies: [],
   correlations: [],
   incidents: [],
   recommendations: {},
-  eventLog: [makeEvent('system', 'Factory twin ready. Import your machinery from the Machines page to begin.')],
+  eventLog: [makeEvent('system', 'Factory twin initialised with all machines online.')],
   selectedMachineId: null,
   simulationSpeed: 1,
   isPaused: false,
