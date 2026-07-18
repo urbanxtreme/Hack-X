@@ -43,6 +43,33 @@ export default function Dashboard() {
   const [darkMode, setDarkMode] = useState(false)
   const [selectedMachine, setSelectedMachine] = useState<any>(null)
 
+  // Factory Twin Simulation State
+  const sim = useFactorySimulation()
+  const [hasOpenedTwin, setHasOpenedTwin] = useState(false)
+  const [energyHistory, setEnergyHistory] = useState<number[]>([54.0, 56.5, 58.0, 55.2, 57.4, 57.4])
+
+  useEffect(() => {
+    if (activeTab === 'twin') {
+      setHasOpenedTwin(true)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!hasOpenedTwin) return
+
+    // Calculate total power in kW from simulation
+    const totalPowerKw = Object.values(sim.state.machines).reduce((sum, m) => sum + m.powerKw, 0)
+
+    setEnergyHistory(prev => {
+      // Append to the list, keeping the last 6 items
+      const next = [...prev, totalPowerKw]
+      if (next.length > 6) {
+        next.shift()
+      }
+      return next
+    })
+  }, [sim.state.machines, hasOpenedTwin])
+
   // Maintenance State
   const [createdWorkOrders, setCreatedWorkOrders] = useState<number[]>([])
   const [completedWorkOrders, setCompletedWorkOrders] = useState<string[]>([])
