@@ -7,7 +7,7 @@ from safety_engine import SafetyEngine
 
 MODEL_PATH = "models/forgemind_ppe.pt"
 
-VIDEO_PATH = "videos/input3.mp4"
+VIDEO_PATH = "videos/input.mp4"
 
 OUTPUT_PATH = "outputs/output.mp4"
 

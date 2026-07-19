@@ -7,7 +7,6 @@ env/
 # Ultralytics / YOLO training outputs
 runs/
 weights/
-*.pt
 *.pth
 *.onnx
 *.engine
