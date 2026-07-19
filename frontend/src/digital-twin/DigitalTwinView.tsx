@@ -218,14 +218,16 @@ export default function DigitalTwinView({
                 onDropFault={handleDropFault}
                 onAddMachine={(name, type, line, gridIndex) => {
                   const newId = `${type.toUpperCase()}-${Math.floor(Math.random() * 10000)}`
+                  syncedMachineIds.current.add(newId)
                   addMachine(name, type, line, gridIndex, newId)
                   if (onMachineAdded) {
                     onMachineAdded({
                       id: newId,
                       name: name || newId,
+                      type: type,
                       status: 'Online',
-                      temp: '40°C',
-                      vib: '0.4mm/s',
+                      temp: '40.0°C',
+                      vib: '0.40 mm/s',
                       util: 90
                     })
                   }
